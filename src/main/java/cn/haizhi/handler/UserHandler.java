@@ -88,4 +88,6 @@ public class UserHandler {
     public ResultView history(HttpSession session){
         return ResultUtil.returnSuccess(dataService.getHistoryData(session));
     }
+
+    @PostMapping("")
 }
