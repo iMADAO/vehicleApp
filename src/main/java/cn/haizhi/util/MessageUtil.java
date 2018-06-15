@@ -29,7 +29,8 @@ public class MessageUtil {
         //产生随机验证码
         String smsCode = (""+Math.random()*1000000).substring(0,6);
         //把验证码保存到session里面
-        session.setAttribute(Const.verification,smsCode);
+        session.setAttribute(Const.VALIDATECODE,smsCode);
+        session.setAttribute(Const.USER_PHONE, phone);
         //设置session的有效时间为300秒
         session.setMaxInactiveInterval(5*60);
         // 短信内容

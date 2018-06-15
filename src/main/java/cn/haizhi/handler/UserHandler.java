@@ -1,17 +1,17 @@
 package cn.haizhi.handler;
 
+import ch.qos.logback.core.pattern.util.RegularEscapeUtil;
 import cn.haizhi.bean.DataDTO;
 import cn.haizhi.bean.GroupData;
 import cn.haizhi.bean.User;
 import cn.haizhi.enums.ErrorEnum;
 import cn.haizhi.exception.MadaoException;
-import cn.haizhi.form.Dataform;
-import cn.haizhi.form.UserAddForm;
-import cn.haizhi.form.UserLoginForm;
+import cn.haizhi.form.*;
 import cn.haizhi.service.DataService;
 import cn.haizhi.service.UserService;
 import cn.haizhi.util.Const;
 import cn.haizhi.util.FormErrorUtil;
+import cn.haizhi.util.MessageUtil;
 import cn.haizhi.util.ResultUtil;
 import cn.haizhi.view.ResultView;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,64 +30,81 @@ public class UserHandler {
     @Autowired
     private UserService userService;
 
-    @Autowired
-    private DataService dataService;
-
-
     @PostMapping("/register")
-    public ResultView register(@Valid @RequestBody UserAddForm form, BindingResult bindingResult){
+    public ResultView register(@Valid @RequestBody UserAddForm form, BindingResult bindingResult, HttpSession session){
         if(bindingResult.hasErrors()){
             throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
         }
 
-        userService.registerUser(form);
+        userService.registerUser(form, session);
         return ResultUtil.returnSuccess();
     }
 
-    @PostMapping("/login")
-    public ResultView login(@Valid @RequestBody UserLoginForm form, BindingResult bindingResult, HttpSession session, HttpServletResponse response){
+    @PostMapping("/login/1")
+    public ResultView loginWithPassword(@Valid @RequestBody UserLoginForm form, BindingResult bindingResult, HttpSession session, HttpServletResponse response){
         if(bindingResult.hasErrors()){
             throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
         }
-        User user = userService.login(form, session, response);
+        User user = userService.loginByUsernameAndPassword(form, session, response);
         return ResultUtil.returnSuccess(user);
     }
 
-    @PostMapping("/data")
-    public ResultView receiveData(@Valid @RequestBody Dataform form, BindingResult bindingResult, HttpServletRequest request, HttpSession session){
+    @PostMapping("/login/2")
+    public ResultView loginWithCode(@Valid @RequestBody UserLoginForm2 form, BindingResult bindingResult, HttpSession session, HttpServletResponse response){
         if(bindingResult.hasErrors()){
             throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
         }
-        dataService.receiveData(form, request, session);
+        User user = userService.LoginByPhoneAndCode(form, session, response);
+        return ResultUtil.returnSuccess(user);
+    }
+
+    @GetMapping("/username/check")
+    public ResultView checkIfUsernameExist(@Valid @RequestBody UsernameForm form, BindingResult bindingResult){
+        if(bindingResult.hasErrors()){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
+        }
+        if (userService.checkIfUsernameExist(form.getUsername())){
+            return ResultUtil.returnSuccess(1);
+        }else{
+            return ResultUtil.returnSuccess(0);
+        }
+    }
+
+    @GetMapping("/phone/check")
+    public ResultView checkIfPhoneExist(@Valid @RequestBody PhoneForm form, BindingResult bindingResult){
+        if(bindingResult.hasErrors()){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
+        }
+        if (userService.checkIfPhoneHadExist(form.getPhone())){
+            return ResultUtil.returnSuccess(1);
+        }else{
+            return ResultUtil.returnSuccess(0);
+        }
+    }
+
+    @PostMapping("/validateCode")
+    public ResultView getValidateCode(@Valid @RequestBody PhoneForm form, BindingResult bindingResult, HttpSession session){
+        if(bindingResult.hasErrors()){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
+        }
+        MessageUtil.SendMessage(form.getPhone(), session);
         return ResultUtil.returnSuccess();
     }
 
-    @GetMapping("/average")
-    public ResultView getAverage(HttpSession session){
-        GroupData groupData = dataService.getAverageData(session);
-        return ResultUtil.returnSuccess(groupData);
-    }
-
-
-    @PostMapping("/hdfs")
-    public void test(HttpServletRequest request){
-        try {
-            dataService.writeFromLocalToHdfs();
-        } catch (IOException e) {
-            e.printStackTrace();
+    @PutMapping("/reserve")
+    public ResultView addReservePhone(@Valid @RequestBody PhoneForm form, BindingResult bindingResult, HttpSession session){
+        if(bindingResult.hasErrors()){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
         }
+
+        userService.addReservePhone(form.getPhone(), session);
+        return ResultUtil.returnSuccess();
     }
+
 
     @GetMapping("/logout")
     public ResultView logout(HttpSession session){
         session.removeAttribute(Const.CURRENT_USER);
         return ResultUtil.returnSuccess();
     }
-
-    @GetMapping("/history")
-    public ResultView history(HttpSession session){
-        return ResultUtil.returnSuccess(dataService.getHistoryData(session));
-    }
-
-    @PostMapping("")
 }

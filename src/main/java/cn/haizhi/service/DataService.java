@@ -90,6 +90,7 @@ public class DataService {
                 }
             }
         }
+        //TODO  检查是否有异常
     }
 
     //将本地的临时存放的数据文件传入hdfs，为定时任务
@@ -194,7 +195,7 @@ public class DataService {
     }
 
 
-    public DataDTO getHistoryData(HttpSession session){
+    public DataDTO getHistoryDataByDay(HttpSession session){
         User user = (User) session.getAttribute(Const.CURRENT_USER);
         String[] dateStrList = DateFormatUtil.getWeekDateString();
         Map<String, GroupData> resultMap = new HashMap<>();

@@ -5,7 +5,7 @@ import java.util.List;
 
 public class Const {
     public static final String CURRENT_USER = "currentUser";
-    public static final String verification = "code";
+    public static final String VALIDATECODE = "validateCode";
     public static final Integer SSO_SESSION_EXPIRE = 604800;
     public static final String TEMP_DIR="/data/tmp_data";
     public static final String HDFS_DIR="hdfs://localhost:8020/vehicle";
@@ -19,6 +19,7 @@ public class Const {
     public static final String COUNT = "count";
     public static final String OUTPUT_FILE = "part-r-00000";
     public static final String REDIS_PREFIX = "VEHICLE";
+    public static final String USER_PHONE = "phone";
 
     public static List<String> paramList;
     static{

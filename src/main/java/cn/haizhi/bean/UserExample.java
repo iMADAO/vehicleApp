@@ -503,6 +503,76 @@ public class UserExample {
             addCriterion("phone not between", value1, value2, "phone");
             return (Criteria) this;
         }
+
+        public Criteria andReservePhoneIsNull() {
+            addCriterion("reserve_phone is null");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneIsNotNull() {
+            addCriterion("reserve_phone is not null");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneEqualTo(String value) {
+            addCriterion("reserve_phone =", value, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneNotEqualTo(String value) {
+            addCriterion("reserve_phone <>", value, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneGreaterThan(String value) {
+            addCriterion("reserve_phone >", value, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneGreaterThanOrEqualTo(String value) {
+            addCriterion("reserve_phone >=", value, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneLessThan(String value) {
+            addCriterion("reserve_phone <", value, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneLessThanOrEqualTo(String value) {
+            addCriterion("reserve_phone <=", value, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneLike(String value) {
+            addCriterion("reserve_phone like", value, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneNotLike(String value) {
+            addCriterion("reserve_phone not like", value, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneIn(List<String> values) {
+            addCriterion("reserve_phone in", values, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneNotIn(List<String> values) {
+            addCriterion("reserve_phone not in", values, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneBetween(String value1, String value2) {
+            addCriterion("reserve_phone between", value1, value2, "reservePhone");
+            return (Criteria) this;
+        }
+
+        public Criteria andReservePhoneNotBetween(String value1, String value2) {
+            addCriterion("reserve_phone not between", value1, value2, "reservePhone");
+            return (Criteria) this;
+        }
     }
 
     public static class Criteria extends GeneratedCriteria {

@@ -24,4 +24,7 @@ public class UserAddForm {
 
     @NotNull(message = "未填写年龄")
     private Byte age;
+
+    @NotNull(message="验证码不能为空")
+    private String validateCode;
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="cn.haizhi.mapper.UserMapper">
+<mapper namespace="cn.haizhi.bean.UserMapper">
   <resultMap id="BaseResultMap" type="cn.haizhi.bean.User">
     <id column="user_id" jdbcType="VARCHAR" property="userId" />
     <result column="username" jdbcType="VARCHAR" property="username" />
@@ -8,6 +8,7 @@
     <result column="age" jdbcType="TINYINT" property="age" />
     <result column="gender" jdbcType="TINYINT" property="gender" />
     <result column="phone" jdbcType="VARCHAR" property="phone" />
+    <result column="reserve_phone" jdbcType="VARCHAR" property="reservePhone" />
   </resultMap>
   <sql id="Example_Where_Clause">
     <where>
@@ -68,7 +69,7 @@
     </where>
   </sql>
   <sql id="Base_Column_List">
-    user_id, username, password, age, gender, phone
+    user_id, username, password, age, gender, phone, reserve_phone
   </sql>
   <select id="selectByExample" parameterType="cn.haizhi.bean.UserExample" resultMap="BaseResultMap">
     select
@@ -102,9 +103,11 @@
   </delete>
   <insert id="insert" parameterType="cn.haizhi.bean.User">
     insert into user (user_id, username, password, 
-      age, gender, phone)
+      age, gender, phone, 
+      reserve_phone)
     values (#{userId,jdbcType=VARCHAR}, #{username,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR}, 
-      #{age,jdbcType=TINYINT}, #{gender,jdbcType=TINYINT}, #{phone,jdbcType=VARCHAR})
+      #{age,jdbcType=TINYINT}, #{gender,jdbcType=TINYINT}, #{phone,jdbcType=VARCHAR}, 
+      #{reservePhone,jdbcType=VARCHAR})
   </insert>
   <insert id="insertSelective" parameterType="cn.haizhi.bean.User">
     insert into user
@@ -127,6 +130,9 @@
       <if test="phone != null">
         phone,
       </if>
+      <if test="reservePhone != null">
+        reserve_phone,
+      </if>
     </trim>
     <trim prefix="values (" suffix=")" suffixOverrides=",">
       <if test="userId != null">
@@ -146,6 +152,9 @@
       </if>
       <if test="phone != null">
         #{phone,jdbcType=VARCHAR},
+      </if>
+      <if test="reservePhone != null">
+        #{reservePhone,jdbcType=VARCHAR},
       </if>
     </trim>
   </insert>
@@ -176,6 +185,9 @@
       <if test="record.phone != null">
         phone = #{record.phone,jdbcType=VARCHAR},
       </if>
+      <if test="record.reservePhone != null">
+        reserve_phone = #{record.reservePhone,jdbcType=VARCHAR},
+      </if>
     </set>
     <if test="_parameter != null">
       <include refid="Update_By_Example_Where_Clause" />
@@ -188,7 +200,8 @@
       password = #{record.password,jdbcType=VARCHAR},
       age = #{record.age,jdbcType=TINYINT},
       gender = #{record.gender,jdbcType=TINYINT},
-      phone = #{record.phone,jdbcType=VARCHAR}
+      phone = #{record.phone,jdbcType=VARCHAR},
+      reserve_phone = #{record.reservePhone,jdbcType=VARCHAR}
     <if test="_parameter != null">
       <include refid="Update_By_Example_Where_Clause" />
     </if>
@@ -211,6 +224,9 @@
       <if test="phone != null">
         phone = #{phone,jdbcType=VARCHAR},
       </if>
+      <if test="reservePhone != null">
+        reserve_phone = #{reservePhone,jdbcType=VARCHAR},
+      </if>
     </set>
     where user_id = #{userId,jdbcType=VARCHAR}
   </update>
@@ -220,7 +236,8 @@
       password = #{password,jdbcType=VARCHAR},
       age = #{age,jdbcType=TINYINT},
       gender = #{gender,jdbcType=TINYINT},
-      phone = #{phone,jdbcType=VARCHAR}
+      phone = #{phone,jdbcType=VARCHAR},
+      reserve_phone = #{reservePhone,jdbcType=VARCHAR}
     where user_id = #{userId,jdbcType=VARCHAR}
   </update>
 </mapper>
