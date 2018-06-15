@@ -1,6 +1,9 @@
 package cn.haizhi.util;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class Const {
@@ -20,6 +23,10 @@ public class Const {
     public static final String OUTPUT_FILE = "part-r-00000";
     public static final String REDIS_PREFIX = "VEHICLE";
     public static final String USER_PHONE = "phone";
+    public static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+    public static final LocalDate lastDate = LocalDate.parse("20180101", dateTimeFormatter);
+    public static final DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("yyyyMM");
+    public static final String NOT_DATA = "not-data";
 
     public static List<String> paramList;
     static{

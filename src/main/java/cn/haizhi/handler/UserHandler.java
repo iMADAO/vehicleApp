@@ -58,24 +58,18 @@ public class UserHandler {
         return ResultUtil.returnSuccess(user);
     }
 
-    @GetMapping("/username/check")
-    public ResultView checkIfUsernameExist(@Valid @RequestBody UsernameForm form, BindingResult bindingResult){
-        if(bindingResult.hasErrors()){
-            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
-        }
-        if (userService.checkIfUsernameExist(form.getUsername())){
+    @GetMapping("/username/check/{username}")
+    public ResultView checkIfUsernameExist(@PathVariable(value = "username") String username){
+        if (userService.checkIfUsernameExist(username)){
             return ResultUtil.returnSuccess(1);
         }else{
             return ResultUtil.returnSuccess(0);
         }
     }
 
-    @GetMapping("/phone/check")
-    public ResultView checkIfPhoneExist(@Valid @RequestBody PhoneForm form, BindingResult bindingResult){
-        if(bindingResult.hasErrors()){
-            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
-        }
-        if (userService.checkIfPhoneHadExist(form.getPhone())){
+    @GetMapping("/phone/check/{phone}")
+    public ResultView checkIfPhoneExist(@PathVariable(value = "phone") String phone){
+        if (userService.checkIfPhoneHadExist(phone)){
             return ResultUtil.returnSuccess(1);
         }else{
             return ResultUtil.returnSuccess(0);

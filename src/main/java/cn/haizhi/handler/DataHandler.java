@@ -4,6 +4,7 @@ import cn.haizhi.bean.GroupData;
 import cn.haizhi.enums.ErrorEnum;
 import cn.haizhi.exception.MadaoException;
 import cn.haizhi.form.Dataform;
+import cn.haizhi.form.DateForm;
 import cn.haizhi.service.DataService;
 import cn.haizhi.util.FormErrorUtil;
 import cn.haizhi.util.ResultUtil;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
+import javax.ws.rs.Path;
 import java.io.IOException;
 
 @RestController
@@ -46,14 +48,15 @@ public class DataHandler {
         return ResultUtil.returnSuccess(groupData);
     }
 
-    @GetMapping("/history/1")
-    public ResultView historyByDay(HttpSession session){
-        return ResultUtil.returnSuccess(dataService.getHistoryDataByDay(session));
+
+    @GetMapping("/history/1/{startDate}/{endDate}")
+    public ResultView historyByDay(HttpSession session, @PathVariable("startDate") String startDate, @PathVariable("endDate") String endDate){
+        return ResultUtil.returnSuccess(dataService.getHistoryDataByDay(startDate, endDate, session));
     }
 
-    @GetMapping("/history/2")
-    public ResultView historyByWeek(HttpSession session){
-        return ResultUtil.returnSuccess();
+    @GetMapping("/history/2/{startMonth}/{endMonth}")
+    public ResultView historyByWeek(@PathVariable("startMonth") String startMonth, @PathVariable("endMonth") String endMonth, HttpSession session){
+        return ResultUtil.returnSuccess(dataService.getHistoryDataByMonth(startMonth, endMonth, session));
     }
 
     @GetMapping("/history/3")

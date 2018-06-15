@@ -20,6 +20,8 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 @Service
@@ -28,6 +30,9 @@ public class UserService {
     private UserMapper userMapper;
 
     public boolean checkIfUsernameExist(String name){
+        if(name==null || name==""){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR, IdResultMap.getIdMapWithName("username", name));
+        }
         UserExample example = new UserExample();
         UserExample.Criteria criteria = example.createCriteria();
         criteria.andUsernameEqualTo(name);
@@ -38,6 +43,11 @@ public class UserService {
     }
 
     public boolean checkIfPhoneHadExist(String phone){
+        Pattern pattern = Pattern.compile("^((17[0-9])|(14St [0-9])|(13[0-9])|(15[^4,\\D])|(18[0,5-9]))\\d{8}$");
+        Matcher matcher = pattern.matcher(phone);
+        if(!matcher.find()){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR, IdResultMap.getIdMapWithName("phone", phone));
+        }
         UserExample example = new UserExample();
         UserExample.Criteria criteria = example.createCriteria();
         criteria.andPhoneEqualTo(phone);
@@ -110,6 +120,10 @@ public class UserService {
         String validateCode = (String) session.getAttribute(Const.VALIDATECODE);
         String phone = (String) session.getAttribute(Const.USER_PHONE);
 
+        if(validateCode==null || phone==null){
+            throw new MadaoException(ErrorEnum.VALICADE_CODE_ERROR);
+        }
+
         //验证手机号码和验证码是否一致
         if (!(phone.equals(form.getPhone()) && validateCode.equals(form.getCode()))){
             throw new MadaoException(ErrorEnum.VALICADE_CODE_ERROR);
@@ -119,6 +133,9 @@ public class UserService {
         UserExample.Criteria criteria = example.createCriteria();
         criteria.andPhoneEqualTo(form.getPhone());
         User user = (User) userMapper.selectByExample(example);
+        if(user==null){
+            throw new  MadaoException(ErrorEnum.USER_NOE_EXIST);
+        }
         Cookie cookie = new Cookie("JSESSIONID", session.getId());
         response.addCookie(cookie);
         cookie.setMaxAge(Const.SSO_SESSION_EXPIRE);
@@ -133,7 +150,7 @@ public class UserService {
     }
 
     public void addReservePhone(String phone, HttpSession session) {
-        User user = (User) session.getAttribute(Const.USER_INFO);
+        User user = (User) session.getAttribute(Const.CURRENT_USER);
         user.setReservePhone(phone);
         userMapper.updateByPrimaryKeySelective(user);
     }

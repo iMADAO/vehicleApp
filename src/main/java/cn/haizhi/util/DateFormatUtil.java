@@ -1,13 +1,15 @@
 package cn.haizhi.util;
 
+import cn.haizhi.enums.ErrorEnum;
+import cn.haizhi.exception.MadaoException;
+
 import javax.swing.text.DateFormatter;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
+import java.time.temporal.Temporal;
+import java.util.*;
 
 public class DateFormatUtil {
     public static String DateToString(Date date){
@@ -50,5 +52,65 @@ public class DateFormatUtil {
             dateStr[i] = date.format(dtf);
         }
         return dateStr;
+    }
+
+    public static List<String> getDateStrInRange(String dateStartStr, String dateEndStr){
+        LocalDate dateStart = null;
+        LocalDate dateEnd = null;
+
+        dateStart = LocalDate.parse(dateStartStr, Const.dateTimeFormatter);
+        dateEnd = LocalDate.parse(dateEndStr, Const.dateTimeFormatter);
+        if (dateStart.compareTo(dateEnd)>0){
+            LocalDate temp = dateStart;
+            dateStart = dateEnd;
+            dateEnd = temp;
+        }
+
+        if (dateEnd.compareTo(Const.lastDate)<0)
+            return null;
+        if (dateStart.compareTo(Const.lastDate)<0)
+            dateStart = Const.lastDate;
+
+        LocalDate now = LocalDate.now();
+        if (dateStart.compareTo(now)>0)
+            return null;
+        if (dateEnd.compareTo(now)>0)
+            dateEnd = now;
+
+        List<String> list = new ArrayList<>();
+        while(dateStart.compareTo(dateEnd)<=0){
+            String str = dateStart.format(Const.dateTimeFormatter);
+            list.add(str);
+            dateStart = dateStart.plusDays(1);
+        }
+        return list;
+    }
+
+    public static List<String> getMonthStrInRange(String startMonthStr, String endMonthStr){
+        List<String> list = new ArrayList<>();
+        LocalDate startDate = LocalDate.parse(startMonthStr + "01", Const.dateTimeFormatter);
+        LocalDate endDate = LocalDate.parse(endMonthStr + "01", Const.dateTimeFormatter);
+        if (startDate.compareTo(endDate)>0){
+            LocalDate temp = startDate;
+            startDate = endDate;
+            endDate = temp;
+        }
+
+        //如果输入的年月在规定的最早年月之前，就返回null
+        if (endDate.compareTo(Const.lastDate)<0)
+            return null;
+        if (startDate.compareTo(Const.lastDate)<0)
+            startDate = Const.lastDate;
+
+        LocalDate now = LocalDate.now();
+        if (endDate.compareTo(now)>0){
+            endDate = LocalDate.parse(now.format(Const.monthFormatter) + "01", Const.dateTimeFormatter);
+        }
+
+        while(startDate.compareTo(endDate)<=0){
+            list.add(startDate.format(Const.monthFormatter));
+            startDate = startDate.plusMonths(1);
+        }
+        return  list;
     }
 }

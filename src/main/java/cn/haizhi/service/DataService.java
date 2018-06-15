@@ -3,11 +3,15 @@ package cn.haizhi.service;
 import cn.haizhi.bean.DataDTO;
 import cn.haizhi.bean.GroupData;
 import cn.haizhi.bean.User;
+import cn.haizhi.enums.ErrorEnum;
 import cn.haizhi.enums.GenderEnum;
+import cn.haizhi.exception.MadaoException;
 import cn.haizhi.form.Dataform;
 import cn.haizhi.mapper.JedisClient;
 import cn.haizhi.util.*;
+import net.sf.jsqlparser.expression.DateTimeLiteralExpression;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.mapreduce.lib.input.InvalidInputException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +22,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -195,9 +202,18 @@ public class DataService {
     }
 
 
-    public DataDTO getHistoryDataByDay(HttpSession session){
+    public DataDTO getHistoryDataByDay(String dateStartStr, String dateEndStr, HttpSession session){
         User user = (User) session.getAttribute(Const.CURRENT_USER);
-        String[] dateStrList = DateFormatUtil.getWeekDateString();
+        List<String> dateStrList = null;
+        try {
+            dateStrList = DateFormatUtil.getDateStrInRange(dateStartStr, dateEndStr);
+        }catch (Exception e){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR);
+        }
+
+        if (dateStrList==null)
+            throw new MadaoException(ErrorEnum.PARAM_ERROR);
+
         Map<String, GroupData> resultMap = new HashMap<>();
         for(String str: dateStrList){
             try {
@@ -219,6 +235,9 @@ public class DataService {
         String redisFileName = Const.REDIS_PREFIX + "-" + user.getUserId() + "-" + dateStr;
         String data = jedisClient.get(redisFileName);
         if(data!=null){
+            if (data.equals(Const.NOT_DATA)){
+                return null;
+            }
             return JsonUtils.jsonToPojo(data, GroupData.class);
         }else{
             String inputPathStr = Const.HDFS_DIR + "/" + (user.getGender().equals(GenderEnum.FEMALE.getCode()) ? GenderEnum.FEMALE.getFlagStr() : GenderEnum.MALE.getFlagStr());
@@ -228,12 +247,119 @@ public class DataService {
 
             if (!fileSystem.exists(new org.apache.hadoop.fs.Path(inputPathStr))){
                 System.out.println("inputPath1---------------------------" + inputPathStr);
+                jedisClient.set(redisFileName, Const.NOT_DATA);
+                jedisClient.expire(redisFileName, 86400);
                 return null;
             }
             try {
                 System.out.println("inputPath2---------------------------" + inputPathStr);
                 inputPathStr = inputPathStr + "/*";
                 MyMapReduce.mapreduceTask(inputPathStr, outputPathStr, resultPath);
+
+                Path path = Paths.get(resultPath);
+                if(Files.exists(path)){
+                    BufferedReader reader = new BufferedReader(new FileReader(resultPath));
+                    String line = null;
+                    String[] strList;
+                    Map<String, String> resultMap = new HashMap<>();
+                    while((line = reader.readLine())!=null){
+                        strList = line.split("\t");
+                        resultMap.put(strList[0], strList[1]);
+                    }
+
+                    double count = Double.parseDouble(resultMap.get("count"));
+                    groupData.setBloodFat(Double.parseDouble(resultMap.get("bloodFat")) / count);
+                    groupData.setBloodPressure((Double.parseDouble(resultMap.get("bloodPressure"))) / count);
+                    groupData.setHeartbeat(Double.parseDouble(resultMap.get("heartbeat")) / count);
+                    groupData.setTemperature(Double.parseDouble(resultMap.get("temperature"))/ count);
+                    groupData.setWeight(Double.parseDouble(resultMap.get("weight")) / count);
+                    jedisClient.set(redisFileName, JsonUtils.objectToJson(groupData));
+                    jedisClient.expire(redisFileName, 604800);
+
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        return groupData;
+    }
+
+
+
+    public DataDTO getHistoryDataByMonth(String monthStartStr, String monthEndStr, HttpSession session){
+        List<String> monthStrList = null;
+        try {
+            monthStrList = DateFormatUtil.getMonthStrInRange(monthStartStr, monthEndStr);
+        }catch (Exception e){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR);
+        }
+
+        if (monthStrList==null)
+            throw new MadaoException(ErrorEnum.PARAM_ERROR);
+
+
+        User user = (User) session.getAttribute(Const.CURRENT_USER);
+        Map<String, GroupData> resultMap = new HashMap<>();
+        for(String str: monthStrList){
+            try {
+                resultMap.put(str, getMonthlyData(str, user));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        DataDTO dataDTO = new DataDTO();
+        dataDTO.setGroupDataList(resultMap);
+        return dataDTO;
+    }
+
+    //获取用户过去某月的平均数据
+    public GroupData getMonthlyData(String monthStr, User user) throws IOException {
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMM");
+
+        try{
+            dateTimeFormatter.parse(monthStr);
+//            LocalDate localDate = LocalDate.parse(monthStr, dateTimeFormatter);
+
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new MadaoException(ErrorEnum.PARAM_ERROR);
+        }
+
+        String now = LocalDate.now().format(dateTimeFormatter);
+        if(now.compareTo(monthStr)<0) {
+            System.out.println(now + "----" + monthStr);
+            return null;
+        }
+        //  /vehicle/M/18/1528532161842133002/201806*/*
+        GroupData groupData = new GroupData();
+        String redisFileName = Const.REDIS_PREFIX + "-" + user.getUserId() + "-" + monthStr;
+        String data = jedisClient.get(redisFileName);
+        if(data!=null){
+            if (data.equals(Const.NOT_DATA))
+                return null;
+            return JsonUtils.jsonToPojo(data, GroupData.class);
+        }else{
+            String inputPathStr = Const.HDFS_DIR + "/" + (user.getGender().equals(GenderEnum.FEMALE.getCode()) ? GenderEnum.FEMALE.getFlagStr() : GenderEnum.MALE.getFlagStr());
+            inputPathStr = inputPathStr + "/" + user.getAge() + "/" + user.getUserId() + "/" + monthStr + "*";
+            String outputPathStr = Const.HDFS_DIR + "/result/" + user.getUserId() + "/"+ monthStr;
+            String resultPath = Const.TEMP_DIR + "/" +  KeyUtil.genUniquKey();
+
+            try {
+                System.out.println("inputPath2---------------------------" + inputPathStr);
+                inputPathStr = inputPathStr + "/*";
+                try {
+                    MyMapReduce.mapreduceTask(inputPathStr, outputPathStr, resultPath);
+                }catch (InvalidInputException e){
+                    jedisClient.set(redisFileName, Const.NOT_DATA);
+                    jedisClient.expire(redisFileName, 86400);
+                    e.printStackTrace();
+                    return null;
+                }
 
                 Path path = Paths.get(resultPath);
                 if(Files.exists(path)){

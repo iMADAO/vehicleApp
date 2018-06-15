@@ -10,6 +10,7 @@ public enum ErrorEnum {
     USER_NOT_LOGIN(4, "用户未登录"),
     VALICADE_CODE_ERROR(5, "验证码错误"),
     PHONE_HAD_REGISTER(6, "该手机号码已注册"),
+    USER_NOE_EXIST(7, "用户未注册"),
     ;
     private Integer code;
     private String message;

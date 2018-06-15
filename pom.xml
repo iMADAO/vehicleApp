@@ -315,7 +315,11 @@
           <include>**/*.xml</include>
         </includes>
       </resource>
+
     </resources>
+
+
+
     <plugins>
       <!-- maven-compiler -->
       <plugin>
