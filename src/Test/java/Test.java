@@ -9,12 +9,13 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import javax.ws.rs.ApplicationPath;
 import java.io.IOException;
+import java.security.acl.Group;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-//@ContextConfiguration("classpath:/spring/*")
+@ContextConfiguration("classpath:/spring/*")
 public class Test {
     @Autowired
     private DataService dataService;
@@ -54,6 +55,25 @@ public class Test {
 //        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMM");
 //        LocalDate.parse("199901", dateTimeFormatter);
 
+    }
+
+    @org.junit.Test
+    public void test5(){
+        User user = new User();
+        user.setUserId("1528532161842133002");
+        user.setGender((byte)0);
+        user.setAge((byte)18);
+        System.out.println(dataService.getPastData(user));
+    }
+
+    @org.junit.Test
+    public void test6() throws IOException {
+        User user = new User();
+        user.setUserId("1528532161842133002");
+        user.setGender((byte)0);
+        user.setAge((byte)18);
+        GroupData groupData = dataService.getDailyData("20180622", user);
+        System.out.println(groupData);
     }
 
 }

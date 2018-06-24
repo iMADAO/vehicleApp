@@ -1,6 +1,7 @@
 package cn.haizhi.service;
 
 
+import cn.haizhi.bean.Device;
 import cn.haizhi.bean.User;
 import cn.haizhi.bean.UserExample;
 import cn.haizhi.enums.ErrorEnum;
@@ -8,6 +9,8 @@ import cn.haizhi.exception.MadaoException;
 import cn.haizhi.form.UserAddForm;
 import cn.haizhi.form.UserLoginForm;
 import cn.haizhi.form.UserLoginForm2;
+import cn.haizhi.mapper.DeviceMapper;
+import cn.haizhi.mapper.JedisClient;
 import cn.haizhi.mapper.UserMapper;
 import cn.haizhi.util.*;
 import cn.haizhi.util.Const;
@@ -28,6 +31,12 @@ import java.util.regex.Pattern;
 public class UserService {
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private JedisClient jedisClient;
+
+    @Autowired
+    private DeviceMapper deviceMapper;
 
     public boolean checkIfUsernameExist(String name){
         if(name==null || name==""){
@@ -82,7 +91,7 @@ public class UserService {
         user.setPassword(MD5.getMD5ofStr(user.getPassword()));
 
         System.out.println(user);
-        userMapper.insert(user);
+        userMapper.insertSelective(user);
     }
 
     public User loginByUsernameAndPassword(UserLoginForm form, HttpSession session, HttpServletResponse response){
@@ -104,6 +113,8 @@ public class UserService {
         }
 
         User user = userList.get(0);
+        updateDeviceUser(form.getDeviceCode(), user.getUserId());
+
         Cookie cookie = new Cookie("JSESSIONID", session.getId());
         response.addCookie(cookie);
         cookie.setMaxAge(Const.SSO_SESSION_EXPIRE);
@@ -114,6 +125,22 @@ public class UserService {
         session.setAttribute(Const.CURRENT_USER, user);
         //9、返回user给安卓端
         return user;
+    }
+
+    private void updateDeviceUser(String deviceCode, String userId){
+        Device device = deviceMapper.selectByPrimaryKey(deviceCode);
+        System.out.println(deviceCode);
+        if(device==null){
+            throw new MadaoException(ErrorEnum.DEVICE_NOT_EXIST);
+        }
+        device.setUserId(userId);
+        deviceMapper.updateByPrimaryKeySelective(device);
+        try {
+            jedisClient.expire(Const.DEVICE + "-" + deviceCode, 0);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
     }
 
     public User LoginByPhoneAndCode(UserLoginForm2 form,  HttpSession session, HttpServletResponse response){
@@ -136,6 +163,9 @@ public class UserService {
         if(user==null){
             throw new  MadaoException(ErrorEnum.USER_NOE_EXIST);
         }
+
+        updateDeviceUser(form.getDeviceCode(), user.getUserId());
+
         Cookie cookie = new Cookie("JSESSIONID", session.getId());
         response.addCookie(cookie);
         cookie.setMaxAge(Const.SSO_SESSION_EXPIRE);
@@ -152,6 +182,29 @@ public class UserService {
     public void addReservePhone(String phone, HttpSession session) {
         User user = (User) session.getAttribute(Const.CURRENT_USER);
         user.setReservePhone(phone);
+        userMapper.updateByPrimaryKeySelective(user);
+    }
+
+    public void revisePassword(String password, String code, HttpSession session) {
+        User user = (User) session.getAttribute(Const.CURRENT_USER);
+        String validateCode = (String) session.getAttribute(Const.VALIDATECODE);
+        if(validateCode==null || !validateCode.equals(code)){
+            throw new MadaoException(ErrorEnum.VALICADE_CODE_ERROR);
+        }
+        user.setPassword(MD5.getMD5ofStr(password));
+        userMapper.updateByPrimaryKeySelective(user);
+
+    }
+
+    public void reviseUsername(String username, HttpSession session){
+        User user = (User) session.getAttribute(Const.CURRENT_USER);
+        if(user==null){
+            throw new MadaoException(ErrorEnum.USER_NOT_LOGIN);
+        }
+
+        user.setUsername(username);
+        UserExample example = new UserExample();
+        UserExample.Criteria criteria = example.createCriteria();
         userMapper.updateByPrimaryKeySelective(user);
     }
 }

@@ -26,11 +26,11 @@
             <property name="enableSubPackages" value="true" />
         </sqlMapGenerator>
         <!-- 生成接口的包名和位置 -->
-        <javaClientGenerator type="XMLMAPPER" targetPackage="cn.haizhi.bean" targetProject="src/main/java">
+        <javaClientGenerator type="XMLMAPPER" targetPackage="cn.haizhi.mapper" targetProject="src/main/java">
             <property name="enableSubPackages" value="true" />
         </javaClientGenerator>
         <!-- 表名 -->
-        <table tableName="user" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" />
+        <table tableName="blood_pressure" enableCountByExample="true" enableUpdateByExample="true" enableDeleteByExample="true" />
 
     </context>
 </generatorConfiguration>

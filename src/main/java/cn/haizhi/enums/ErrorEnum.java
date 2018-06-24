@@ -11,6 +11,15 @@ public enum ErrorEnum {
     VALICADE_CODE_ERROR(5, "验证码错误"),
     PHONE_HAD_REGISTER(6, "该手机号码已注册"),
     USER_NOE_EXIST(7, "用户未注册"),
+    DATA_NOT_SET(8, "数据未设定"),
+
+    DATA_EXCTPTION(100, " 数据异常"),
+    TP_EXCEPTION(101, "体温异常"),
+    BP_EXCEPTION(102, "血压异常"),
+
+
+    DEVICE_HAD_EXIST(11, "设备已存在"),
+    DEVICE_NOT_EXIST(12, "设备码错误"),
     ;
     private Integer code;
     private String message;

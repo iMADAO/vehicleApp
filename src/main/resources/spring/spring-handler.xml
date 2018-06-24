@@ -33,7 +33,6 @@
             <bean class="cn.haizhi.inters.BaseInterceptor"/>
         </mvc:interceptor>
         <mvc:interceptor>
-            <mvc:mapping path="/data"/>
             <mvc:mapping path="/history/**"/>
             <mvc:mapping path="/average" />
             <mvc:mapping path="/reserve" />

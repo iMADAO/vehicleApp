@@ -29,8 +29,9 @@ public class MyMapReduce {
             context.write(new Text(DataNameEnum.TEMPERATURE.getName()), new DoubleWritable(Double.parseDouble(words[1])));
             context.write(new Text(DataNameEnum.WEIGHT.getName()), new DoubleWritable(Double.parseDouble(words[2])));
             context.write(new Text(DataNameEnum.HEARTBEAT.getName()), new DoubleWritable(Double.parseDouble(words[3])));
-            context.write(new Text(DataNameEnum.BLOODPRESSUER.getName()), new DoubleWritable(Double.parseDouble(words[4])));
-            context.write(new Text(DataNameEnum.BLOODFAT.getName()), new DoubleWritable(Double.parseDouble(words[5])));
+            context.write(new Text(DataNameEnum.SYSTOLICPRESSURE.getName()), new DoubleWritable(Double.parseDouble(words[4])));
+            context.write(new Text(DataNameEnum.DIASTOLICPRESSURE.getName()), new DoubleWritable(Double.parseDouble(words[5])));
+            context.write(new Text(DataNameEnum.BLOODFAT.getName()), new DoubleWritable(Double.parseDouble(words[6])));
             context.write(new Text(DataNameEnum.COUNT.getName()), new DoubleWritable(1));
         }
     }

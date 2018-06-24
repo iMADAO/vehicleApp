@@ -9,6 +9,8 @@ public enum DataNameEnum {
     WEIGHT("weight"),
     HEARTBEAT("heartbeat"),
     BLOODPRESSUER("bloodPressure"),
+    SYSTOLICPRESSURE("systolicPressure"),
+    DIASTOLICPRESSURE("diastolicPressure"),
     BLOODFAT("bloodFat"),
     COUNT("count");
     ;

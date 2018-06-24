@@ -27,4 +27,7 @@ public class UserAddForm {
 
     @NotNull(message="验证码不能为空")
     private String validateCode;
+
+    @Pattern(regexp = "^((17[0-9])|(14St [0-9])|(13[0-9])|(15[^4,\\D])|(18[0,5-9]))\\d{8}$", message = "手机号码格式不正确")
+    private String reserve_phone;
 }

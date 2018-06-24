@@ -1,18 +1,24 @@
 package cn.haizhi.service;
 
-import cn.haizhi.bean.DataDTO;
-import cn.haizhi.bean.GroupData;
-import cn.haizhi.bean.User;
+import cn.haizhi.bean.*;
+import cn.haizhi.enums.DataNameEnum;
 import cn.haizhi.enums.ErrorEnum;
 import cn.haizhi.enums.GenderEnum;
+import cn.haizhi.enums.TypeEnum;
 import cn.haizhi.exception.MadaoException;
 import cn.haizhi.form.Dataform;
+import cn.haizhi.mapper.DataMapper;
+import cn.haizhi.mapper.DeviceMapper;
 import cn.haizhi.mapper.JedisClient;
+import cn.haizhi.mapper.UserMapper;
 import cn.haizhi.util.*;
-import net.sf.jsqlparser.expression.DateTimeLiteralExpression;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.mapreduce.lib.input.InvalidInputException;
+import org.hibernate.validator.internal.engine.groups.Group;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.Local;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpServletRequest;
@@ -23,7 +29,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,14 +45,63 @@ public class DataService {
     @Autowired
     private FileSystem fileSystem;
 
+    @Autowired
+    private DataMapper dataMapper;
+
+    @Autowired
+    private DeviceMapper deviceMapper;
+
+    @Autowired
+    private DeviceService deviceService;
+
+    @Autowired
+    private UserMapper userMapper;
+
+    private GroupDataDTO groupDataDTO;
+
+
     //接收数据，存入临时目录，并返回进七天每天平均信 息和同条件下所有人的平均信息
     //存入的临时目录结构为 /data/tmp_data/日期/用户id/日期-用户id 和 userinfo存入用户id 年龄 性别
     // /data/tmp_data/20180609/1528532161842133002/20180610-1528532161842133002
     //1528532161842133002     18      0
     public void receiveData(Dataform form, HttpServletRequest request, HttpSession session) {
+        String redisStr = Const.DEVICE + "-" + form.getDeviceCode();
+        String result = jedisClient.get(redisStr);
+        Device device = null;
+        String userId = null;
+        if(result==null){
+            device = deviceMapper.selectByPrimaryKey(form.getDeviceCode());
+            if(device==null) {
+                device = new Device(form.getDeviceCode());
+                deviceService.register(device);
+            }
+            if(device.getUserId()==null || device.getUserId()==""){
+                jedisClient.set(redisStr, Const.NOT_DATA);
+                throw new MadaoException(ErrorEnum.USER_NOT_LOGIN);
+            }
 
-        User user = (User) session.getAttribute(Const.CURRENT_USER);
-        String dataStr = form.getTemperature() + "\t" + form.getWeight() + "\t" + form.getHeartbeat() + "\t" + form.getBloodPressure() + "\t" + form.getBloodFat();
+            userId = device.getUserId();
+            jedisClient.set(redisStr, userId);
+
+        }else{
+            userId = jedisClient.get(redisStr);
+            if(userId.equals(Const.NOT_DATA)){
+                throw new MadaoException(ErrorEnum.USER_NOT_LOGIN);
+            }
+        }
+
+        User user = userMapper.selectByPrimaryKey(userId);
+        if (user==null){
+             throw new MadaoException(ErrorEnum.USER_NOT_LOGIN);
+        }
+
+        groupDataDTO = new GroupDataDTO();
+        BeanUtils.copyProperties(form, groupDataDTO);
+        groupDataDTO.setLocalDateTime(LocalDateTime.now());
+        Const.data.put(user.getUserId(), groupDataDTO);
+
+
+        String dataStr = form.getTemperature() + "\t" + form.getWeight() + "\t" + form.getHeartbeat() + "\t" + form.getSystolicPressure() + "\t" + form.getDiastolicPressure() + "\t" + form.getBloodFat();
         Instant instant = Instant.now();
         dataStr = instant.toEpochMilli() + "\t" + dataStr;
         String pathStr =  Const.TEMP_DIR;
@@ -97,7 +154,76 @@ public class DataService {
                 }
             }
         }
-        //TODO  检查是否有异常
+
+//        //检查是否有异常
+//        String redisTPName = Const.REDIS_PREFIX + "-" + user.getGender() + "-" + user.getAge() + "-" + Const.TEMPERATURE;
+//        String redisBPName = Const.REDIS_PREFIX + "-" + user.getGender() + "-" + user.getAge() + "-" + Const.BLOODPRESSURE;
+//        String temperatureString = jedisClient.get(redisTPName);
+//        String bloodPressureString = jedisClient.get(redisBPName);
+//        Data temperatureData = null;
+//        Data bloodPressureData = null;
+//        if(temperatureData==null){
+//            DataExample example = new DataExample();
+//            DataExample.Criteria criteria = example.createCriteria();
+//            criteria.andAgeEqualTo(user.getAge());
+//            criteria.andGenderEqualTo(user.getGender());
+//            criteria.andTypeEqualTo(TypeEnum.TEMPERATURE.getType());
+//            List<Data> dataList = dataMapper.selectByExample(example);
+//            if (dataList.size()==0){
+//                throw new MadaoException(ErrorEnum.DATA_NOT_SET);
+//            }
+//            temperatureData = dataList.get(0);
+//            try {
+//                jedisClient.set(redisTPName, JsonUtils.objectToJson(temperatureData));
+//            }catch (Exception e){
+//                e.printStackTrace();
+//            }
+//        }else{
+//            temperatureData = JsonUtils.jsonToPojo(temperatureString, Data.class);
+//        }
+//
+//
+//        if(bloodPressureString==null){
+//            DataExample example = new DataExample();
+//            DataExample.Criteria criteria = example.createCriteria();
+//            criteria.andAgeEqualTo(user.getAge());
+//            criteria.andGenderEqualTo(user.getGender());
+//            criteria.andTypeEqualTo(TypeEnum.BLOODPRESSURE.getType());
+//            List<Data> dataList = dataMapper.selectByExample(example);
+//            if (dataList.size()==0){
+//                throw new MadaoException(ErrorEnum.DATA_NOT_SET);
+//            }
+//            bloodPressureData = dataList.get(0);
+//            try {
+//                jedisClient.set(redisBPName, JsonUtils.objectToJson(bloodPressureData));
+//            }catch (Exception e){
+//                e.printStackTrace();
+//            }
+//        }else{
+//            try {
+//                jedisClient.set(redisBPName, JsonUtils.objectToJson(bloodPressureData));
+//            }catch (Exception e){
+//                e.printStackTrace();
+//            }
+//
+//            bloodPressureData = JsonUtils.jsonToPojo(temperatureString, Data.class);
+//        }
+
+//        Map<ErrorEnum, String> errorMap = null;
+//        if(form.getTemperature()>temperatureData.getUpperData()){
+//            errorMap = new HashMap<>();
+//            errorMap.put(ErrorEnum.TP_EXCEPTION, form.getTemperature()+"");
+//        }
+//
+//        if (form.getBloodPressure()>bloodPressureData.getUpperData()){
+//            if (errorMap==null)
+//                errorMap = new HashMap<>();
+//            errorMap.put(ErrorEnum.BP_EXCEPTION, form.getBloodPressure()+"");
+//        }
+//
+//        if (errorMap!=null){
+//            throw new MadaoException(ErrorEnum.DATA_EXCTPTION, ErrorResultUtil.getResultViewList(errorMap));
+//        }
     }
 
     //将本地的临时存放的数据文件传入hdfs，为定时任务
@@ -231,6 +357,10 @@ public class DataService {
     //获取用户过去某天的平均数据
     public GroupData getDailyData(String dateStr, User user) throws IOException {
         //  /vehicle/M/18/1528532161842133002/20180609/20180609-1528532161842133002
+        if(dateStr.compareTo(Const.lastDateStr)<0 || dateStr.compareTo(LocalDate.now().format(Const.dateTimeFormatter))>=0){
+            System.out.println("error date-----------" + dateStr);
+            return null;
+        }
         GroupData groupData = new GroupData();
         String redisFileName = Const.REDIS_PREFIX + "-" + user.getUserId() + "-" + dateStr;
         String data = jedisClient.get(redisFileName);
@@ -247,8 +377,12 @@ public class DataService {
 
             if (!fileSystem.exists(new org.apache.hadoop.fs.Path(inputPathStr))){
                 System.out.println("inputPath1---------------------------" + inputPathStr);
-                jedisClient.set(redisFileName, Const.NOT_DATA);
-                jedisClient.expire(redisFileName, 86400);
+                try {
+                    jedisClient.set(redisFileName, Const.NOT_DATA);
+                    jedisClient.expire(redisFileName, 86400);
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
                 return null;
             }
             try {
@@ -267,14 +401,21 @@ public class DataService {
                         resultMap.put(strList[0], strList[1]);
                     }
 
-                    double count = Double.parseDouble(resultMap.get("count"));
-                    groupData.setBloodFat(Double.parseDouble(resultMap.get("bloodFat")) / count);
-                    groupData.setBloodPressure((Double.parseDouble(resultMap.get("bloodPressure"))) / count);
-                    groupData.setHeartbeat(Double.parseDouble(resultMap.get("heartbeat")) / count);
-                    groupData.setTemperature(Double.parseDouble(resultMap.get("temperature"))/ count);
-                    groupData.setWeight(Double.parseDouble(resultMap.get("weight")) / count);
-                    jedisClient.set(redisFileName, JsonUtils.objectToJson(groupData));
-                    jedisClient.expire(redisFileName, 604800);
+                    double count = Double.parseDouble(resultMap.get(Const.paramMap.get("count")));
+                    groupData.setBloodFat(Double.parseDouble(resultMap.get(Const.paramMap.get("bloodFat"))) / count);
+                    BloodPressure bloodPressure = new BloodPressure();
+                    bloodPressure.setDiastolicPressure(Double.parseDouble(resultMap.get(Const.paramMap.get("diastolicPressure"))) / count);
+                    bloodPressure.setSystolicPressure(Double.parseDouble(resultMap.get(Const.paramMap.get("systolicPressure"))) /count);
+                    groupData.setBloodPressure(bloodPressure);
+                    groupData.setHeartbeat(Double.parseDouble(resultMap.get(Const.paramMap.get("heartbeat"))) / count);
+                    groupData.setTemperature(Double.parseDouble(resultMap.get(Const.paramMap.get("temperature")))/ count);
+                    groupData.setWeight(Double.parseDouble(resultMap.get(Const.paramMap.get("weight"))) / count);
+                    try {
+                        jedisClient.set(redisFileName, JsonUtils.objectToJson(groupData));
+                        jedisClient.expire(redisFileName, 604800);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
 
                 }
             } catch (IOException e) {
@@ -291,6 +432,7 @@ public class DataService {
 
 
     public DataDTO getHistoryDataByMonth(String monthStartStr, String monthEndStr, HttpSession session){
+        String monthStr = LocalDate.now().format(Const.monthFormatter);
         List<String> monthStrList = null;
         try {
             monthStrList = DateFormatUtil.getMonthStrInRange(monthStartStr, monthEndStr);
@@ -306,7 +448,11 @@ public class DataService {
         Map<String, GroupData> resultMap = new HashMap<>();
         for(String str: monthStrList){
             try {
-                resultMap.put(str, getMonthlyData(str, user));
+                if (str.compareTo(Const.lastMonthStr)<0 || str.compareTo(monthStr)>0){
+                    resultMap.put(str, null);
+                }else {
+                    resultMap.put(str, getMonthlyData(str, user));
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -355,8 +501,12 @@ public class DataService {
                 try {
                     MyMapReduce.mapreduceTask(inputPathStr, outputPathStr, resultPath);
                 }catch (InvalidInputException e){
-                    jedisClient.set(redisFileName, Const.NOT_DATA);
-                    jedisClient.expire(redisFileName, 86400);
+                    try {
+                        jedisClient.set(redisFileName, Const.NOT_DATA);
+                        jedisClient.expire(redisFileName, 86400);
+                    }catch (Exception e1){
+                        e1.printStackTrace();
+                    }
                     e.printStackTrace();
                     return null;
                 }
@@ -372,14 +522,21 @@ public class DataService {
                         resultMap.put(strList[0], strList[1]);
                     }
 
-                    double count = Double.parseDouble(resultMap.get("count"));
-                    groupData.setBloodFat(Double.parseDouble(resultMap.get("bloodFat")) / count);
-                    groupData.setBloodPressure((Double.parseDouble(resultMap.get("bloodPressure"))) / count);
-                    groupData.setHeartbeat(Double.parseDouble(resultMap.get("heartbeat")) / count);
-                    groupData.setTemperature(Double.parseDouble(resultMap.get("temperature"))/ count);
-                    groupData.setWeight(Double.parseDouble(resultMap.get("weight")) / count);
-                    jedisClient.set(redisFileName, JsonUtils.objectToJson(groupData));
-                    jedisClient.expire(redisFileName, 604800);
+                    double count = Double.parseDouble(resultMap.get(Const.paramMap.get("count")));
+                    groupData.setBloodFat(Double.parseDouble(resultMap.get(Const.paramMap.get("bloodFat"))) / count);
+                    BloodPressure bloodPressure = new BloodPressure();
+                    bloodPressure.setDiastolicPressure(Double.parseDouble(resultMap.get(Const.paramMap.get("diastolicPressure"))) / count);
+                    bloodPressure.setSystolicPressure(Double.parseDouble(resultMap.get(Const.paramMap.get("systolicPressure"))) /count);
+                    groupData.setBloodPressure(bloodPressure);
+                    groupData.setHeartbeat(Double.parseDouble(resultMap.get(Const.paramMap.get("heartbeat"))) / count);
+                    groupData.setTemperature(Double.parseDouble(resultMap.get(Const.paramMap.get("temperature")))/ count);
+                    groupData.setWeight(Double.parseDouble(resultMap.get(Const.paramMap.get("weight"))) / count);
+                    try {
+                        jedisClient.set(redisFileName, JsonUtils.objectToJson(groupData));
+                        jedisClient.expire(redisFileName, 604800);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
 
                 }
             } catch (IOException e) {
@@ -426,14 +583,21 @@ public class DataService {
                         resultMap.put(strList[0], strList[1]);
                     }
 
-                    double count = Double.parseDouble(resultMap.get("count"));
-                    groupData.setBloodFat(Double.parseDouble(resultMap.get("bloodFat")) / count);
-                    groupData.setBloodPressure((Double.parseDouble(resultMap.get("bloodPressure"))) / count);
-                    groupData.setHeartbeat(Double.parseDouble(resultMap.get("heartbeat")) / count);
-                    groupData.setTemperature(Double.parseDouble(resultMap.get("temperature"))/ count);
-                    groupData.setWeight(Double.parseDouble(resultMap.get("weight")) / count);
-                    jedisClient.set(redisName, JsonUtils.objectToJson(groupData));
-                    jedisClient.expire(redisName, 604800);
+                    double count = Double.parseDouble(resultMap.get(Const.paramMap.get("count")));
+                    groupData.setBloodFat(Double.parseDouble(resultMap.get(Const.paramMap.get("bloodFat"))) / count);
+                    BloodPressure bloodPressure = new BloodPressure();
+                    bloodPressure.setDiastolicPressure(Double.parseDouble(resultMap.get(Const.paramMap.get("diastolicPressure"))) / count);
+                    bloodPressure.setSystolicPressure(Double.parseDouble(resultMap.get(Const.paramMap.get("systolicPressure"))) /count);
+                    groupData.setBloodPressure(bloodPressure);
+                    groupData.setHeartbeat(Double.parseDouble(resultMap.get(Const.paramMap.get("heartbeat"))) / count);
+                    groupData.setTemperature(Double.parseDouble(resultMap.get(Const.paramMap.get("temperature")))/ count);
+                    groupData.setWeight(Double.parseDouble(resultMap.get(Const.paramMap.get("weight"))) / count);
+                    try {
+                        jedisClient.set(redisName, JsonUtils.objectToJson(groupData));
+                        jedisClient.expire(redisName, 604800);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
                     return groupData;
 
                 }else{
@@ -450,4 +614,237 @@ public class DataService {
         return null;
     }
 
+    public DataWeekly getWeeklyData(int n, HttpSession session){
+        User user = (User) session.getAttribute(Const.CURRENT_USER);
+        if (user==null){
+            throw new MadaoException(ErrorEnum.USER_NOT_LOGIN);
+        }
+        WeekPair weekPair = new WeekPair();
+        List<String> list = weekPair.getWeekPairStr(n);
+        if(list.get(1).compareTo(Const.lastDateStr)<0){
+            return null;
+        }
+
+        String redisName = "week-" +list.get(0) + "-" + list.get(1) + "-" + user.getUserId();
+        String result = null;
+        try {
+            result = jedisClient.get(redisName);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        if(result!=null){
+            return JsonUtils.jsonToPojo(result, DataWeekly.class);
+        }
+
+        String dateStr = LocalDate.now().format(Const.dateTimeFormatter);
+        if(list.get(0).compareTo(dateStr)>0)
+            return null;
+
+        Map<String, GroupData> groupDataList = new HashMap<>();
+        List<String> strList = DateFormatUtil.getDateStrInRange(list.get(0), list.get(1));
+        strList.stream().forEach(System.out::println);
+
+        int[] count = {0};
+        double[] temperature = {0};
+//        double[] bloodPressure = {0};
+        double[] systolicPressure = {0};
+        double[] diastolicPressure = {0};
+
+
+        double[] bloodFat = {0};
+        double[] weight = {0};
+        double[] heartbeat = {0};
+
+        strList.stream().filter(x->x!=null).forEach(x-> {
+            System.out.println(x + "---");
+            try {
+                GroupData groupData = getDailyData(x, user);
+                if (groupData!=null) {
+                    temperature[0] += groupData.getTemperature();
+                    systolicPressure[0] += groupData.getBloodPressure().getSystolicPressure();
+                    diastolicPressure[0] += groupData.getBloodPressure().getDiastolicPressure();
+                    bloodFat[0] += groupData.getBloodFat();
+                    weight[0] += groupData.getWeight();
+                    heartbeat[0] = groupData.getHeartbeat();
+                    count[0]++;
+                }
+
+                groupDataList.put(x, groupData);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+
+        GroupData averageData = new GroupData();
+        averageData.setBloodPressure(new BloodPressure());
+        if (weight[0]!=0) {
+            averageData.setWeight(weight[0] / count[0]);
+        }
+        if (temperature[0]!=0) {
+            averageData.setTemperature(temperature[0] / count[0]);
+        }
+        if (heartbeat[0]!=0) {
+            averageData.setHeartbeat(heartbeat[0] / count[0]);
+        }
+
+        if (systolicPressure[0]!=0) {
+            averageData.getBloodPressure().setSystolicPressure(systolicPressure[0] / count[0]);
+        }
+
+        if (diastolicPressure[0]!=0) {
+            averageData.getBloodPressure().setDiastolicPressure(diastolicPressure[0] / count[0]);
+        }
+
+        if (bloodFat[0]!=0) {
+            averageData.setBloodFat(bloodFat[0] / count[0]);
+        }
+
+        DataWeekly dataWeekly = new DataWeekly();
+        dataWeekly.setAverageData(averageData);
+        dataWeekly.setGroupDataList(groupDataList);
+
+        try {
+            jedisClient.set(redisName, JsonUtils.objectToJson(dataWeekly));
+            //如果选择的是当前周，则有可能会继续更新值，把redis过期的值设为半天
+            if (n < 0) {
+                jedisClient.expire(redisName, 43200);
+
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return dataWeekly;
+    }
+
+    public DataResult getData(HttpSession session) {
+        User user = (User) session.getAttribute(Const.CURRENT_USER);
+        if (user==null)
+            throw new MadaoException(ErrorEnum.USER_NOT_LOGIN);
+        GroupDataDTO groupDataDTO =  Const.data.get(user.getUserId());
+        if (groupDataDTO==null){
+            return null;
+        }
+
+
+//        if(groupDataDTO.getTemperature()>Const.errorTP){
+//            tpReport += "数据异常";
+//        }else if(groupDataDTO.getTemperature()>Const.warningThreeTP){
+//            tpReport += " 体温过高，请停止开车";
+//        }else if(groupDataDTO.getTemperature()>Const.warningTwoTp){
+//            tpReport += "体温较高，请注意身体";
+//        }else if(groupDataDTO.getTemperature()>Const.warningOneTp){
+//            tpReport += "体温稍高";
+//        }
+        String tpReport = AccessUtil.accessTemp(groupDataDTO.getTemperature());
+        String bpReport = AccessUtil.accessBloodPressure(new BloodPressure(groupDataDTO.getSystolicPressure(), groupDataDTO.getSystolicPressure()));
+        String bfReport = "";
+        String wReport = "";
+        String hbReport = "";
+
+
+        GroupData recentData = getPastData(user);
+        if (recentData!=null){
+            Double w = groupDataDTO.getWeight() - recentData.getWeight();
+            wReport = wReport +  "近期" + (w>0 ? "增加" + w + UnitEnum.WEIGHT.getUnit() : (w<0 ? "减少"  + w + UnitEnum.WEIGHT.getUnit(): "基本不变"));
+        }
+
+        //TODO check bloodPressure and other parameter
+
+        DataResult dataResult = new DataResult();
+        dataResult.setGroupDataDTO(groupDataDTO);
+        Map<String, String> report = new HashMap<>();
+        report.put(DataNameEnum.TEMPERATURE.getName(), tpReport);
+        report.put(DataNameEnum.BLOODPRESSUER.getName(), bpReport);
+        report.put(DataNameEnum.HEARTBEAT.getName(), hbReport);
+        report.put(DataNameEnum.WEIGHT.getName(), wReport);
+        report.put(DataNameEnum.BLOODFAT.getName(), bfReport);
+        dataResult.setReport(report);
+        return dataResult;
+    }
+
+    public GroupData getPastData(User user){
+        if (user==null){
+            throw new MadaoException(ErrorEnum.USER_NOT_LOGIN);
+        }
+
+        List<String> dateStrList = DateFormatUtil.getWeekDateStrList();
+
+        String redisName = "recent-" + user.getUserId();
+        String result = null;
+        try {
+            result = jedisClient.get(redisName);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        if(result!=null){
+            return JsonUtils.jsonToPojo(result, GroupData.class);
+        }
+
+        int[] count = {0};
+        double[] temperature = {0};
+//        double[] bloodPressure = {0};
+        double[] systolicPressure = {0};
+        double[] diastolicPressure = {0};
+
+
+        double[] bloodFat = {0};
+        double[] weight = {0};
+        double[] heartbeat = {0};
+
+        dateStrList.stream().filter(x->x!=null).forEach(x-> {
+            System.out.println(x + "---");
+            try {
+                GroupData groupData = getDailyData(x, user);
+                System.out.println("--------------------------" + groupData);
+                if (groupData!=null) {
+                    temperature[0] += groupData.getTemperature();
+                    if(groupData.getBloodPressure()!=null) {
+                        systolicPressure[0] += groupData.getBloodPressure().getSystolicPressure();
+                        diastolicPressure[0] += groupData.getBloodPressure().getDiastolicPressure();
+                    }
+                    bloodFat[0] += groupData.getBloodFat();
+                    weight[0] += groupData.getWeight();
+                    heartbeat[0] = groupData.getHeartbeat();
+                    count[0]++;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+
+        GroupData averageData = new GroupData();
+        averageData.setBloodPressure(new BloodPressure());
+        if (weight[0]!=0) {
+            averageData.setWeight(weight[0] / count[0]);
+        }
+        if (temperature[0]!=0) {
+            averageData.setTemperature(temperature[0] / count[0]);
+        }
+        if (heartbeat[0]!=0) {
+            averageData.setHeartbeat(heartbeat[0] / count[0]);
+        }
+
+        if (systolicPressure[0]!=0) {
+            averageData.getBloodPressure().setSystolicPressure(systolicPressure[0] / count[0]);
+        }
+
+        if (diastolicPressure[0]!=0) {
+            averageData.getBloodPressure().setDiastolicPressure(diastolicPressure[0] / count[0]);
+        }
+
+        if (bloodFat[0]!=0) {
+            averageData.setBloodFat(bloodFat[0] / count[0]);
+        }
+
+        try {
+            jedisClient.set(redisName, JsonUtils.objectToJson(averageData));
+            jedisClient.expire(redisName, 86400);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return averageData;
+    }
 }

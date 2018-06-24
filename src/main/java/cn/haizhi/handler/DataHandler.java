@@ -1,5 +1,8 @@
 package cn.haizhi.handler;
 
+import cn.haizhi.bean.BloodPressure;
+import cn.haizhi.bean.DataResult;
+import cn.haizhi.bean.DataWeekly;
 import cn.haizhi.bean.GroupData;
 import cn.haizhi.enums.ErrorEnum;
 import cn.haizhi.exception.MadaoException;
@@ -7,6 +10,7 @@ import cn.haizhi.form.Dataform;
 import cn.haizhi.form.DateForm;
 import cn.haizhi.service.DataService;
 import cn.haizhi.util.FormErrorUtil;
+import cn.haizhi.util.KeyUtil;
 import cn.haizhi.util.ResultUtil;
 import cn.haizhi.view.ResultView;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +22,7 @@ import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 import javax.ws.rs.Path;
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @RestController
 public class DataHandler {
@@ -31,15 +36,6 @@ public class DataHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    @PostMapping("/data")
-    public ResultView receiveData(@Valid @RequestBody Dataform form, BindingResult bindingResult, HttpServletRequest request, HttpSession session){
-        if(bindingResult.hasErrors()){
-            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
-        }
-        dataService.receiveData(form, request, session);
-        return ResultUtil.returnSuccess();
     }
 
     @GetMapping("/average")
@@ -59,8 +55,30 @@ public class DataHandler {
         return ResultUtil.returnSuccess(dataService.getHistoryDataByMonth(startMonth, endMonth, session));
     }
 
-    @GetMapping("/history/3")
-    public ResultView historyByMonth(HttpSession session){
-        return ResultUtil.returnSuccess();
+    @GetMapping("/history/3/{weekNum}")
+    public ResultView historyByMonth(@PathVariable("weekNum") int weekNum,  HttpSession session){
+        DataWeekly dataWeekly = dataService.getWeeklyData(weekNum, session);
+        return ResultUtil.returnSuccess(dataWeekly);
     }
+
+    @GetMapping("/getData")
+    public ResultView getData(HttpSession session){
+        DataResult dataResult = dataService.getData(session);
+        return ResultUtil.returnSuccess(dataResult);
+    }
+
+
+
+//    @PostMapping("/test")
+//    public void save(byte gender, byte startAge, byte endAge, double pressure){
+//        BloodPressure bloodPressure = new BloodPressure();
+//        bloodPressure.setGender(gender);
+//        bloodPressure.setStartAge(startAge);
+//        bloodPressure.setEndAge(endAge);
+//        bloodPressure.setPressure(pressure);
+//        bloodPressure.setId(KeyUtil.genUniquKey());
+//
+//
+//
+//    }
 }

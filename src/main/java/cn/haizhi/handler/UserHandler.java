@@ -1,13 +1,10 @@
 package cn.haizhi.handler;
 
-import ch.qos.logback.core.pattern.util.RegularEscapeUtil;
-import cn.haizhi.bean.DataDTO;
-import cn.haizhi.bean.GroupData;
+
 import cn.haizhi.bean.User;
 import cn.haizhi.enums.ErrorEnum;
 import cn.haizhi.exception.MadaoException;
 import cn.haizhi.form.*;
-import cn.haizhi.service.DataService;
 import cn.haizhi.service.UserService;
 import cn.haizhi.util.Const;
 import cn.haizhi.util.FormErrorUtil;
@@ -15,15 +12,12 @@ import cn.haizhi.util.MessageUtil;
 import cn.haizhi.util.ResultUtil;
 import cn.haizhi.view.ResultView;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
-import java.io.IOException;
 
 @RestController
 public class UserHandler {
@@ -92,6 +86,24 @@ public class UserHandler {
         }
 
         userService.addReservePhone(form.getPhone(), session);
+        return ResultUtil.returnSuccess();
+    }
+
+    @PutMapping("/revise/1")
+    public ResultView revisePassword(@Valid @RequestBody UserReviseForm form, BindingResult bindingResult, HttpSession session){
+        if(bindingResult.hasErrors()){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
+        }
+        userService.revisePassword(form.getPassword(), form.getCode(), session);
+        return ResultUtil.returnSuccess();
+    }
+
+    @PutMapping("/revise/2")
+    public ResultView reviseUsername(@Valid @RequestBody UsernameForm form, BindingResult bindingResult, HttpSession session){
+        if(bindingResult.hasErrors()){
+            throw new MadaoException(ErrorEnum.PARAM_ERROR, FormErrorUtil.getFormErrors(bindingResult));
+        }
+        userService.reviseUsername(form.getUsername(), session);
         return ResultUtil.returnSuccess();
     }
 

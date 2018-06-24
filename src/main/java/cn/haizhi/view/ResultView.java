@@ -15,5 +15,4 @@ public class ResultView {
     private Integer code;
     private String hint;
     private Object data;
-
 }
