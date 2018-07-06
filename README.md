@@ -1,0 +1,4 @@
+app的后台系统
+使用java语言开发，基于ssm框架
+接收数据并按规划的目录存入hadoop的hdfs文件系统中
+统计数据时使用mapreduce计算结果，用redis缓存结果
